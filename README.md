@@ -1,2 +1,2 @@
 # SmartJDBC
-JDBC wrapper
+Make your JDBC life easy.
