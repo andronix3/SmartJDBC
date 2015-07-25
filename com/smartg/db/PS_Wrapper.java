@@ -28,7 +28,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 package com.smartg.db;
 
 import java.sql.PreparedStatement;
@@ -36,6 +35,9 @@ import java.sql.SQLDataException;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Level;
+
+import com.sun.istack.internal.logging.Logger;
 
 class PS_Wrapper {
     PreparedStatement ps;
@@ -66,7 +68,7 @@ class PS_Wrapper {
     boolean execute(Object[] values) throws SQLException {
 	return execute(Arrays.asList(values));
     }
-    
+
     boolean execute(Object[] values, Integer[] indexes) throws SQLException {
 	return execute(Arrays.asList(values), Arrays.asList(indexes));
     }
@@ -79,10 +81,8 @@ class PS_Wrapper {
 	    for (Object o : values) {
 		try {
 		    ps.setObject(k++, o);
-		}
-		catch(SQLDataException e) {
-		    System.err.println(o);
-		    e.printStackTrace();
+		} catch (SQLDataException e) {
+		    Logger.getLogger(getClass()).log(Level.SEVERE, e.getMessage() + " " + o);
 		}
 	    }
 	    hasResultSet = ps.execute();
@@ -91,7 +91,7 @@ class PS_Wrapper {
 	}
 	return false;
     }
-    
+
     boolean execute(List<Object> values, List<Integer> indexes) throws SQLException {
 	result = null;
 	valid = false;
@@ -107,7 +107,6 @@ class PS_Wrapper {
 	return false;
     }
 
-    
     boolean execute() throws SQLException {
 	result = null;
 	valid = false;

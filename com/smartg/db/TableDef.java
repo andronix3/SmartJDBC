@@ -33,8 +33,11 @@ package com.smartg.db;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.logging.Level;
 
 import com.smartg.java.util.SafeIterator;
+import com.sun.istack.internal.logging.Logger;
 
 public class TableDef {
     public final String tableName;
@@ -44,14 +47,38 @@ public class TableDef {
     private ArrayList<int[]> conditionColumns = new ArrayList<int[]>();
 
     static class Columns {
+
+	private HashMap<String, Column> byName = new HashMap<String, Column>();
+	private HashMap<String, Integer> name2index = new HashMap<String, Integer>();
+
 	private Column[] columns;
 
 	Columns(Column[] columns) {
 	    this.columns = columns;
+	    for (Column c : columns) {
+		byName.put(c.getName(), c);
+	    }
+	    for (int i = 0; i < columns.length; i++) {
+		Column c = columns[i];
+		name2index.put(c.getName(), i);
+	    }
+	}
+
+	Column getColumn(String name) {
+	    return byName.get(name);
 	}
 
 	Column getColumn(int column) {
 	    return columns[column];
+	}
+
+	int getColumnIndex(String name) {
+	    Integer k = name2index.get(name);
+	    if (k == null) {
+		Logger.getLogger(getClass()).log(Level.SEVERE, "Column not found: " + name);
+		return -1;
+	    }
+	    return k.intValue();
 	}
 
 	public Enumeration<Column> columns() {
@@ -79,6 +106,15 @@ public class TableDef {
 	conditionColumns.add(cc);
     }
 
+    public void addConditionColumns(String... cc) {
+	int[] nn = new int[cc.length];
+	for (int i = 0; i < cc.length; i++) {
+	    nn[i] = columns.name2index.get(cc[i]);
+	}
+	Arrays.sort(nn);
+	addConditionColumns(nn);
+    }
+
     public Enumeration<int[]> getConditionColumns() {
 	return new SafeIterator<int[]>(conditionColumns.iterator());
     }
@@ -95,6 +131,17 @@ public class TableDef {
 	String s = "";
 	for (int c : columns) {
 	    s += c;
+	    s += "_";
+	}
+	return "insertStat_" + tableName + s;
+    }
+    
+    public String getInsertStatementName(String... names) {
+	String s = "";
+	for (String col : names) {
+	    int c = columns.getColumnIndex(col);
+	    s += c;
+	    s += "_";
 	}
 	return "insertStat_" + tableName + s;
     }
@@ -107,6 +154,17 @@ public class TableDef {
 	String s = "";
 	for (int c : columns) {
 	    s += c;
+	    s += "_";
+	}
+	return "selectStat_" + tableName + s;
+    }
+
+    public String getSelectStatementName(String... names) {
+	String s = "";
+	for (String col : names) {
+	    int c = columns.getColumnIndex(col);
+	    s += c;
+	    s += "_";
 	}
 	return "selectStat_" + tableName + s;
     }
@@ -120,7 +178,17 @@ public class TableDef {
 	return "insert into " + tableName + names + " values ( " + createString('?', columnsLengthForInsert) + ")";
     }
 
+    public String getPreparedInsertStatement(String... columns) {
+	String names = getColumns(columns);
+	return "insert into " + tableName + names + " values ( " + createString('?', columnsLengthForInsert) + ")";
+    }
+
     public String getPreparedSelectStatement(int column) {
+	Column column2 = columns.getColumn(column);
+	return "select * from " + tableName + " where " + column2.getName() + " = ? ";
+    }
+
+    public String getPreparedSelectStatement(String column) {
 	Column column2 = columns.getColumn(column);
 	return "select * from " + tableName + " where " + column2.getName() + " = ? ";
     }
@@ -129,6 +197,21 @@ public class TableDef {
 	String res = "select * from " + tableName + " where ";
 	String ws = "";
 	for (int c : column) {
+	    ws += columns.getColumn(c).getName() + " = ? AND ";
+	}
+	if (column.length > 0) {
+	    int index = ws.lastIndexOf(" AND ");
+	    ws = ws.substring(0, index);
+	}
+	return res + ws;
+
+    }
+
+    public String getPreparedSelectStatement(String... column) {
+	String res = "select * from " + tableName + " where ";
+	String ws = "";
+	for (String c : column) {
+	    // ws += c + " = ? AND ";
 	    ws += columns.getColumn(c).getName() + " = ? AND ";
 	}
 	if (column.length > 0) {
@@ -152,9 +235,26 @@ public class TableDef {
 		+ " = ? ";
     }
 
+    public String getPreparedUpdateStatement(String conditionColumn, String updateColumn) {
+	return "UPDATE " + tableName + " SET " + columns.getColumn(updateColumn).getName() + " = ? WHERE " + columns.getColumn(conditionColumn).getName()
+		+ " = ? ";
+    }
+
     private String getColumns(int... columns) {
 	String res = "(";
 	for (int c : columns) {
+	    res += this.columns.getColumn(c).getName();
+	    res += ",";
+	}
+	res = res.substring(0, res.length() - 1);
+	res = res + ")";
+
+	return res;
+    }
+
+    private String getColumns(String... columns) {
+	String res = "(";
+	for (String c : columns) {
 	    res += this.columns.getColumn(c).getName();
 	    res += ",";
 	}

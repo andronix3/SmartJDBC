@@ -144,7 +144,7 @@ public abstract class DB_TableManager {
     }
 
     private void prepareSelectStatement(TableDef tableDef, int... conditionColumn) {
-	jdbc.prepareStatement(tableDef.getSelectStatementName() + conditionColumn, tableDef.getPreparedSelectStatement(conditionColumn));
+	jdbc.prepareStatement(tableDef.getSelectStatementName(conditionColumn), tableDef.getPreparedSelectStatement(conditionColumn));
     }
 
     private void prepareSelectStatement(TableDef tableDef) {
