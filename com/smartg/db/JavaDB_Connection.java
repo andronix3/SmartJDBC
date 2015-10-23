@@ -176,7 +176,7 @@ public class JavaDB_Connection extends JDB_Actions {
      * @return
      * @throws SQLException
      */
-    public boolean execute(String name, Object[] values) throws SQLException {
+    public boolean execute(String name, Object... values) throws SQLException {
 	List<Object> asList = Arrays.asList(values);
 	return execute(name, asList);
     }
@@ -292,6 +292,7 @@ public class JavaDB_Connection extends JDB_Actions {
     }
 
     public Result getResult(String key) {
-	return new GetResultSet(key).execute().result;
+	ActionResult<Result> execute = new GetResultSet(key).execute();
+	return execute.result;
     }
 }

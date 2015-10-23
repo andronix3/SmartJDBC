@@ -128,7 +128,7 @@ public abstract class DB_TableManager {
 		createTable(td, jdbc);
 	    }
 	}
-	
+
 	jdbc.printTables();
     }
 
@@ -147,8 +147,16 @@ public abstract class DB_TableManager {
 	jdbc.prepareStatement(tableDef.getSelectStatementName(conditionColumn), tableDef.getPreparedSelectStatement(conditionColumn));
     }
 
+    private void prepareCountStatement(TableDef tableDef, int... conditionColumn) {
+	jdbc.prepareStatement(tableDef.getCountStatementName(conditionColumn), tableDef.getPreparedCountStatement(conditionColumn));
+    }
+
     private void prepareSelectStatement(TableDef tableDef) {
 	jdbc.prepareStatement(tableDef.getSelectStatementName(), tableDef.getPreparedSelectStatement());
+    }
+
+    private void prepareCountStatement(TableDef tableDef) {
+	jdbc.prepareStatement(tableDef.getCountStatementName(), tableDef.getPreparedCountStatement());
     }
 
     // TODO add support for updates
@@ -163,23 +171,23 @@ public abstract class DB_TableManager {
 
 	for (TableDef td : tables) {
 	    prepareInsertStatement(td);
-	}
-
-	for (TableDef td : tables) {
 	    prepareSelectStatement(td);
+	    prepareCountStatement(td);
 	}
 
 	for (TableDef td : tables) {
 	    Enumeration<int[]> list = td.getConditionColumns();
 	    while (list.hasMoreElements()) {
-		prepareSelectStatement(td, list.nextElement());
+		int[] next = list.nextElement();
+		prepareSelectStatement(td, next);
+		prepareCountStatement(td, next);
 	    }
 	}
     }
 
     public void insert(String tableName, ArrayList<Object> objects) throws SQLException, NullPointerException {
 	TableDef td = map.get(tableName);
-	if(td == null) {
+	if (td == null) {
 	    throw new NullPointerException("Table not found: " + tableName);
 	}
 	insert(td, objects);
@@ -189,46 +197,98 @@ public abstract class DB_TableManager {
 	jdbc.execute(tableDef.getInsertStatementName(), objects);
     }
 
-    public void insert(String tableName, Object[] objects) throws SQLException, NullPointerException {
+    public void insert(String tableName, Object... objects) throws SQLException, NullPointerException {
 	TableDef td = map.get(tableName);
-	if(td == null) {
+	if (td == null) {
 	    throw new NullPointerException("Table not found: " + tableName);
 	}
 	insert(td, objects);
     }
 
-    public void insert(TableDef tableDef, Object[] objects) throws SQLException {
+    public void insert(TableDef tableDef, Object... objects) throws SQLException {
 	jdbc.execute(tableDef.getInsertStatementName(), objects);
     }
 
     public void select(String tableName, int conditionColumn, Object value) throws SQLException, NullPointerException {
 	TableDef td = map.get(tableName);
-	if(td == null) {
+	if (td == null) {
 	    throw new NullPointerException("Table not found: " + tableName);
 	}
 	select(td, conditionColumn, value);
     }
+    
+    public void count(String tableName, int conditionColumn, Object value) throws SQLException, NullPointerException {
+	TableDef td = map.get(tableName);
+	if (td == null) {
+	    throw new NullPointerException("Table not found: " + tableName);
+	}
+	count(td, conditionColumn, value);
+    }
+
 
     public void select(TableDef tableDef, int conditionColumn, Object value) throws SQLException {
-	String name = tableDef.getSelectStatementName() + conditionColumn;
+	String name = tableDef.getSelectStatementName(conditionColumn);
+	jdbc.execute(name, new Object[] { value });
+    }
+
+    public void count(TableDef tableDef, int conditionColumn, Object value) throws SQLException {
+	String name = tableDef.getCountStatementName(conditionColumn);
 	jdbc.execute(name, new Object[] { value });
     }
 
     public void select(String tableName) throws SQLException, NullPointerException {
 	TableDef td = map.get(tableName);
-	if(td == null) {
+	if (td == null) {
 	    throw new NullPointerException("Table not found: " + tableName);
 	}
 	select(td);
+    }
+
+    public void count(String tableName) throws SQLException, NullPointerException {
+	TableDef td = map.get(tableName);
+	if (td == null) {
+	    throw new NullPointerException("Table not found: " + tableName);
+	}
+	count(td);
+    }
+
+    public void select(String tableName, String[] columns, Object[] values) throws SQLException {
+	TableDef td = map.get(tableName);
+	if (td == null) {
+	    throw new NullPointerException("Table not found: " + tableName);
+	}
+	select(td, columns, values);
+    }
+
+    public void count(String tableName, String[] columns, Object[] values) throws SQLException {
+	TableDef td = map.get(tableName);
+	if (td == null) {
+	    throw new NullPointerException("Table not found: " + tableName);
+	}
+	count(td, columns, values);
+    }
+
+    public void select(TableDef tableDef, String[] columns, Object... values) throws SQLException {
+	String name = tableDef.getSelectStatementName(columns);
+	jdbc.execute(name, values);
+    }
+
+    public void count(TableDef tableDef, String[] columns, Object... values) throws SQLException {
+	String name = tableDef.getCountStatementName(columns);
+	jdbc.execute(name, values);
     }
 
     public void select(TableDef tableDef) throws SQLException {
 	jdbc.execute2(tableDef.getSelectStatementName());
     }
 
+    public void count(TableDef tableDef) throws SQLException {
+	jdbc.execute2(tableDef.getCountStatementName());
+    }
+
     public void update(String tableName, int conditionColumn, int updateColumn, Object value) throws SQLException, NullPointerException {
 	TableDef td = map.get(tableName);
-	if(td == null) {
+	if (td == null) {
 	    throw new NullPointerException("Table not found: " + tableName);
 	}
 	update(td, conditionColumn, updateColumn, value);

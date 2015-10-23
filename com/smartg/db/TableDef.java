@@ -56,16 +56,16 @@ public class TableDef {
 	Columns(Column[] columns) {
 	    this.columns = columns;
 	    for (Column c : columns) {
-		byName.put(c.getName(), c);
+		byName.put(c.getName().toUpperCase(), c);
 	    }
 	    for (int i = 0; i < columns.length; i++) {
 		Column c = columns[i];
-		name2index.put(c.getName(), i);
+		name2index.put(c.getName().toUpperCase(), i);
 	    }
 	}
 
 	Column getColumn(String name) {
-	    return byName.get(name);
+	    return byName.get(name.toUpperCase());
 	}
 
 	Column getColumn(int column) {
@@ -73,7 +73,7 @@ public class TableDef {
 	}
 
 	int getColumnIndex(String name) {
-	    Integer k = name2index.get(name);
+	    Integer k = name2index.get(name.toUpperCase());
 	    if (k == null) {
 		Logger.getLogger(getClass()).log(Level.SEVERE, "Column not found: " + name);
 		return -1;
@@ -109,7 +109,7 @@ public class TableDef {
     public void addConditionColumns(String... cc) {
 	int[] nn = new int[cc.length];
 	for (int i = 0; i < cc.length; i++) {
-	    nn[i] = columns.name2index.get(cc[i]);
+	    nn[i] = columns.name2index.get(cc[i].toUpperCase());
 	}
 	Arrays.sort(nn);
 	addConditionColumns(nn);
@@ -135,7 +135,7 @@ public class TableDef {
 	}
 	return "insertStat_" + tableName + s;
     }
-    
+
     public String getInsertStatementName(String... names) {
 	String s = "";
 	for (String col : names) {
@@ -149,6 +149,10 @@ public class TableDef {
     public String getSelectStatementName() {
 	return "selectStat_" + tableName;
     }
+    
+    public String getCountStatementName() {
+	return "countStat_" + tableName;
+    }
 
     public String getSelectStatementName(int... columns) {
 	String s = "";
@@ -158,6 +162,16 @@ public class TableDef {
 	}
 	return "selectStat_" + tableName + s;
     }
+    
+    public String getCountStatementName(int... columns) {
+	String s = "";
+	for (int c : columns) {
+	    s += c;
+	    s += "_";
+	}
+	return "countStat_" + tableName + s;
+    }
+
 
     public String getSelectStatementName(String... names) {
 	String s = "";
@@ -168,6 +182,17 @@ public class TableDef {
 	}
 	return "selectStat_" + tableName + s;
     }
+    
+    public String getCountStatementName(String... names) {
+	String s = "";
+	for (String col : names) {
+	    int c = columns.getColumnIndex(col);
+	    s += c;
+	    s += "_";
+	}
+	return "countStat_" + tableName + s;
+    }
+
 
     public String getPreparedInsertStatement() {
 	return "insert into " + tableName + " values ( " + createString('?', columnsLengthForInsert) + ")";
@@ -188,13 +213,46 @@ public class TableDef {
 	return "select * from " + tableName + " where " + column2.getName() + " = ? ";
     }
 
+    public String getPreparedCountStatement(int column) {
+	Column column2 = columns.getColumn(column);
+	return "select COUNT(*) from " + tableName + " where " + column2.getName() + " = ? ";
+    }
+
     public String getPreparedSelectStatement(String column) {
 	Column column2 = columns.getColumn(column);
 	return "select * from " + tableName + " where " + column2.getName() + " = ? ";
     }
 
+    public String getPreparedCountStatement(String column) {
+	Column column2 = columns.getColumn(column);
+	return "select COUNT(*) from " + tableName + " where " + column2.getName() + " = ? ";
+    }
+
     public String getPreparedSelectStatement(int... column) {
 	String res = "select * from " + tableName + " where ";
+	String ws = fillCoulumns(column);
+	return res + ws;
+    }
+
+    public String getPreparedCountStatement(int... column) {
+	String res = "select COUNT(*) from " + tableName + " where ";
+	String ws = fillCoulumns(column);
+	return res + ws;
+    }
+
+    public String getPreparedSelectStatement(String... column) {
+	String res = "select * from " + tableName + " where ";
+	String ws = fillColumns(column);
+	return res + ws;
+    }
+
+    public String getPreparedCountStatement(String... column) {
+	String res = "select COUNT(*) from " + tableName + " where ";
+	String ws = fillColumns(column);
+	return res + ws;
+    }
+
+    private String fillCoulumns(int... column) {
 	String ws = "";
 	for (int c : column) {
 	    ws += columns.getColumn(c).getName() + " = ? AND ";
@@ -203,27 +261,27 @@ public class TableDef {
 	    int index = ws.lastIndexOf(" AND ");
 	    ws = ws.substring(0, index);
 	}
-	return res + ws;
-
+	return ws;
     }
 
-    public String getPreparedSelectStatement(String... column) {
-	String res = "select * from " + tableName + " where ";
+    private String fillColumns(String... column) {
 	String ws = "";
 	for (String c : column) {
-	    // ws += c + " = ? AND ";
 	    ws += columns.getColumn(c).getName() + " = ? AND ";
 	}
 	if (column.length > 0) {
 	    int index = ws.lastIndexOf(" AND ");
 	    ws = ws.substring(0, index);
 	}
-	return res + ws;
-
+	return ws;
     }
 
     public String getPreparedSelectStatement() {
 	return "select * from " + tableName;
+    }
+
+    public String getPreparedCountStatement() {
+	return "select COUNT(*) from " + tableName;
     }
 
     public String getUpdateStatementName() {
