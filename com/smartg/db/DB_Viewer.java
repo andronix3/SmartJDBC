@@ -55,189 +55,194 @@ import javax.swing.table.DefaultTableModel;
 
 public class DB_Viewer extends JPanel {
 
-    private static final long serialVersionUID = 6644818061049030786L;
+	private static final long serialVersionUID = 6644818061049030786L;
 
-    JavaDB_Connection connection;
+	JavaDB_Connection connection;
 
-    JList<String> tableList;
-    DefaultListModel<String> tableListModel = new DefaultListModel<String>();
+	JList<String> tableList;
+	DefaultListModel<String> tableListModel = new DefaultListModel<String>();
 
-    DefaultTableModel dataTableModel = new DefaultTableModel();
-    JTable dataTable = new JTable(dataTableModel);
+	DefaultTableModel dataTableModel = new DefaultTableModel();
+	JTable dataTable = new JTable(dataTableModel);
 
-    Box box = Box.createHorizontalBox();
-    JComboBox<String> jComboBox = new JComboBox<String>(new String[] { "Select..." });
-    JTextField filterText = new JTextField(10);
-    JButton refresh = new JButton("Refresh");
-    JButton reset = new JButton("Reset");
+	Box box = Box.createHorizontalBox();
+	JComboBox<String> jComboBox = new JComboBox<String>(new String[] { "Select..." });
+	JTextField filterText = new JTextField(10);
+	JButton refresh = new JButton("Refresh");
+	JButton reset = new JButton("Reset");
 
-    public DB_Viewer(JavaDB_Connection conn) {
-	this.connection = conn;
-	tableList = new JList<String>(tableListModel);
+	public DB_Viewer(JavaDB_Connection conn) {
+		this.connection = conn;
+		tableList = new JList<String>(tableListModel);
 
-	setLayout(new BorderLayout());
-	add(new JScrollPane(tableList), BorderLayout.WEST);
-	add(new JScrollPane(dataTable), BorderLayout.CENTER);
+		setLayout(new BorderLayout());
+		add(new JScrollPane(tableList), BorderLayout.WEST);
+		add(new JScrollPane(dataTable), BorderLayout.CENTER);
 
-	box.add(jComboBox);
-	box.add(filterText);
-	// box.add(Box.createHorizontalGlue());
-	box.add(refresh);
-	box.add(reset);
+		box.add(jComboBox);
+		box.add(filterText);
+		// box.add(Box.createHorizontalGlue());
+		box.add(refresh);
+		box.add(reset);
 
-	refresh.addActionListener(new ActionListener() {
-	    public void actionPerformed(ActionEvent e) {
-		updateValues();
-	    }
-	});
+		refresh.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				updateValues();
+			}
+		});
 
-	reset.addActionListener(new ActionListener() {
-	    public void actionPerformed(ActionEvent e) {
-		jComboBox.setSelectedIndex(0);
-		filterText.setText("");
-		updateValues();
-	    }
-	});
+		reset.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				jComboBox.setSelectedIndex(0);
+				filterText.setText("");
+				updateValues();
+			}
+		});
 
-	// box.add(Box.createHorizontalGlue());
+		// box.add(Box.createHorizontalGlue());
 
-	add(box, BorderLayout.SOUTH);
+		add(box, BorderLayout.SOUTH);
 
-	Result tables = connection.getTables();
-	if (tables != null) {
-	    while (tables.hasMoreElements()) {
-		ArrayList<Object> next = tables.nextElement();
-		Logger.getLogger("com.imagero.db").info(String.valueOf(next));
-//		System.out.println(next);
-		if (!"SYSTEM TABLE".equals(next.get(3))) {
-		    String tableName = (String) next.get(2);
-		    if (tableName != null) {
-			TableMetadata tableMetadata;
-			if (connection.isExcelConnection()) {
-			    tableName = tableName.substring(0, tableName.indexOf('$') + 1);
-			    tableName = "[" + tableName + "]";
-			    String sql = "select * from " + tableName;
-			    Result result = connection.executeAndGetResult(sql);
-			    tableMetadata = result.getResultMetadata();
+		Result tables = connection.getTables();
+		if (tables != null) {
+			while (tables.hasMoreElements()) {
+				ArrayList<Object> next = tables.nextElement();
+				Logger.getLogger("com.imagero.db").info(String.valueOf(next));
+				// System.out.println(next);
+				if (!"SYSTEM TABLE".equals(next.get(3))) {
+					String tableName = (String) next.get(2);
+					if (tableName != null) {
+						TableMetadata tableMetadata;
+						if (connection.isExcelConnection()) {
+							tableName = tableName.substring(0, tableName.indexOf('$') + 1);
+							tableName = "[" + tableName + "]";
+							String sql = "select * from " + tableName;
+							Result result = connection.executeAndGetResult(sql);
+							tableMetadata = result.getResultMetadata();
 
+						} else {
+							tableMetadata = connection.getTableMetadata(tableName);
+						}
+						StringBuffer sb = new StringBuffer(tableName);
+						sb.append(" [ ");
+						if (tableMetadata != null) {
+							String[] columnNames = tableMetadata.getColumnNames();
+							for (int i = 0; i < columnNames.length; i++) {
+								sb.append(columnNames[i]);
+								if (i < columnNames.length - 1) {
+									sb.append(", ");
+								}
+								if (sb.length() > 50) {
+									sb.setLength(50);
+									sb.append("...");
+									break;
+								}
+							}
+						}
+						sb.append(" ]");
+						tableListModel.addElement(sb.toString());
+					}
+				}
+			}
+		}
+
+		tableList.addListSelectionListener(new ListSelectionListener() {
+			public void valueChanged(ListSelectionEvent e) {
+				if (!e.getValueIsAdjusting()) {
+					updateValues();
+				}
+			}
+		});
+	}
+
+	private String getFilter() {
+		String text = filterText.getText();
+		if (text == null || text.trim().isEmpty()) {
+			return "";
+		}
+		if (jComboBox.getSelectedIndex() == 0) {
+			return "";
+		}
+		return "WHERE " + jComboBox.getSelectedItem() + " = " + text + " ";
+	}
+
+	private void updateValues() {
+		String tableName = tableList.getSelectedValue();
+		tableName = tableName.substring(0, tableName.indexOf(" ["));
+		String columnName = "";
+
+		String key = tableName;
+
+		int selectedIndex = jComboBox.getSelectedIndex();
+		if (selectedIndex > 0) {
+			columnName = jComboBox.getSelectedItem().toString();
+			key += "." + columnName;
+			if (!connection.hasStatement(key)) {
+				String sql = "select * from " + tableName + " where " + columnName + " = ? ";
+				connection.prepareStatement(key, sql);
+			}
+		}
+
+		String filter = getFilter();
+		Result result = null;
+		String sql = "select * from " + tableName + " " + filter;
+		if (!connection.isExcelConnection()) {
+			if (filter.isEmpty()) {
+				String sql2 = sql + " FETCH FIRST 1000 ROWs ONLY ";
+				System.out.println(sql2);
+				result = connection.executeAndGetResult(sql2);
 			} else {
-			    tableMetadata = connection.getTableMetadata(tableName);
-			}
-			StringBuffer sb = new StringBuffer(tableName);
-			sb.append(" [ ");
-			if (tableMetadata != null) {
-			    String[] columnNames = tableMetadata.getColumnNames();
-			    for (int i = 0; i < columnNames.length; i++) {
-				sb.append(columnNames[i]);
-				if (i < columnNames.length - 1) {
-				    sb.append(", ");
+				try {
+					connection.execute(key, new Object[] { filterText.getText() });
+					result = connection.getResult(key);
+
+				} catch (SQLException ex) {
+					ex.printStackTrace();
 				}
-				if (sb.length() > 50) {
-				    sb.setLength(50);
-				    sb.append("...");
-				    break;
-				}
-			    }
+				// result = connection.executeAndGetResult(sql);
 			}
-			sb.append(" ]");
-			tableListModel.addElement(sb.toString());
-		    }
+		} else {
+			result = connection.executeAndGetResult(sql);
 		}
-	    }
+
+		applyResult(result);
 	}
 
-	tableList.addListSelectionListener(new ListSelectionListener() {
-	    public void valueChanged(ListSelectionEvent e) {
-		if (!e.getValueIsAdjusting()) {
-		    updateValues();
-		}
-	    }
-	});
-    }
+	void applyResult(Result result) {
+		int rowCount = 1000;
+		int columnCount = 0;
+		if (result != null) {
+			TableMetadata resultMetadata = result.getResultMetadata();
+			String[] columnNames = resultMetadata.getColumnNames();
 
-    private String getFilter() {
-	String text = filterText.getText();
-	if (text == null || text.trim().isEmpty()) {
-	    return "";
-	}
-	if (jComboBox.getSelectedIndex() == 0) {
-	    return "";
-	}
-	return "WHERE " + jComboBox.getSelectedItem() + " = " + text + " ";
-    }
+			Vector<String> v = new Vector<String>();
+			v.add("Select...");
+			v.addAll(Arrays.asList(columnNames));
+		
+		jComboBox.setModel(new DefaultComboBoxModel<String>(v));
 
-    private void updateValues() {
-	String tableName = tableList.getSelectedValue();
-	tableName = tableName.substring(0, tableName.indexOf(" ["));
-	String columnName = "";
+		columnCount = resultMetadata.getColumnCount();
+		dataTableModel.setColumnCount(columnCount);
+		dataTableModel.setColumnIdentifiers(columnNames);
+		dataTableModel.setRowCount(rowCount);
 
-	String key = tableName;
-
-	int selectedIndex = jComboBox.getSelectedIndex();
-	if (selectedIndex > 0) {
-	    columnName = jComboBox.getSelectedItem().toString();
-	    key += "." + columnName;
-	    if (!connection.hasStatement(key)) {
-		String sql = "select * from " + tableName + " where " + columnName + " = ? ";
-		connection.prepareStatement(key, sql);
-	    }
-	}
-
-	String filter = getFilter();
-	Result result = null;
-	String sql = "select * from " + tableName + " " + filter;
-	if (!connection.isExcelConnection()) {
-	    if (filter.isEmpty()) {
-		result = connection.executeAndGetResult(sql + " FETCH FIRST 1000 ROWs ONLY ");
-	    } else {
-		try {
-		    connection.execute(key, new Object[] { filterText.getText() });
-		    result = connection.getResult(key);
-
-		} catch (SQLException ex) {
-		    ex.printStackTrace();
-		}
-		// result = connection.executeAndGetResult(sql);
-	    }
-	} else {
-	    result = connection.executeAndGetResult(sql);
-	}
-
-	applyResult(result);
-    }
-
-    void applyResult(Result result) {
-	TableMetadata resultMetadata = result.getResultMetadata();
-	String[] columnNames = resultMetadata.getColumnNames();
-
-	Vector<String> v = new Vector<String>();
-	v.add("Select...");
-	v.addAll(Arrays.asList(columnNames));
-
-	jComboBox.setModel(new DefaultComboBoxModel<String>(v));
-
-	int columnCount = resultMetadata.getColumnCount();
-	dataTableModel.setColumnCount(columnCount);
-	dataTableModel.setColumnIdentifiers(columnNames);
-	int rowCount = 1000;
-	dataTableModel.setRowCount(rowCount);
-
-	String[] columnTypes = resultMetadata.getColumnTypes();
-	for (int i = 0; i < columnCount; i++) {
-	    dataTableModel.setValueAt(columnTypes[i], 0, i);
-	}
-
-	for (int row = 1; row < rowCount; row++) {
-	    if (result.hasMoreElements()) {
-		ArrayList<Object> next = result.nextElement();
+		String[] columnTypes = resultMetadata.getColumnTypes();
 		for (int i = 0; i < columnCount; i++) {
-		    dataTableModel.setValueAt(next.get(i), row, i);
+			dataTableModel.setValueAt(columnTypes[i], 0, i);
 		}
-	    } else {
-		for (int i = 0; i < columnCount; i++) {
-		    dataTableModel.setValueAt("", row, i);
 		}
-	    }
+		
+		for (int row = 1; row < rowCount; row++) {
+			if (result != null && result.hasMoreElements()) {
+				ArrayList<Object> next = result.nextElement();
+				for (int i = 0; i < columnCount; i++) {
+					dataTableModel.setValueAt(next.get(i), row, i);
+				}
+			} else {
+				for (int i = 0; i < columnCount; i++) {
+					dataTableModel.setValueAt("", row, i);
+				}
+			}
+		}
 	}
-    }
 }

@@ -42,77 +42,77 @@ import java.util.Enumeration;
  * 
  */
 public class Result implements Enumeration<ArrayList<Object>> {
-    private ResultSet rs;
-    TableMetadata resultMetadata;
-    private int columnCount;
-    private boolean hasNext;
+	private ResultSet rs;
+	TableMetadata resultMetadata;
+	private int columnCount;
+	private boolean hasNext;
 
-    SQLException exception;
+	SQLException exception;
 
-    protected Result() {
+	protected Result() {
 
-    }
-
-    Result(ResultSet rs) {
-	this.rs = rs;
-	if (rs != null) {
-	    try {
-		resultMetadata = new TableMetadata(rs.getMetaData());
-		columnCount = resultMetadata.getColumnCount();
-	    } catch (SQLException ex) {
-		exception = ex;
-		hasNext = false;
-	    }
-	    next();
-	} else {
-	    hasNext = false;
 	}
-    }
 
-    public SQLException getException() {
-	return exception;
-    }
-
-    public TableMetadata getResultMetadata() {
-	return resultMetadata;
-    }
-
-    private void next() {
-	if (rs != null) {
-	    try {
-		hasNext = rs.next();
-	    } catch (SQLException ex) {
-		exception = ex;
-		hasNext = false;
-	    }
-	} else {
-	    hasNext = false;
-	}
-    }
-
-    public boolean hasMoreElements() {
-	return hasNext;
-    }
-
-    public ArrayList<Object> nextElement() {
-	if (hasNext) {
-	    ArrayList<Object> list = new ArrayList<Object>();
-	    for (int i = 0; i < columnCount; i++) {
-		try {
-		    list.add(rs.getObject(i + 1));
-		} catch (SQLException ex) {
-		    list.add(null);
+	Result(ResultSet rs) {
+		this.rs = rs;
+		if (rs != null) {
+			try {
+				resultMetadata = new TableMetadata(rs.getMetaData());
+				columnCount = resultMetadata.getColumnCount();
+			} catch (SQLException ex) {
+				exception = ex;
+				hasNext = false;
+			}
+			next();
+		} else {
+			hasNext = false;
 		}
-	    }
-	    next();
-	    return list;
 	}
-	return null;
-    }
 
-    @Override
-    protected void finalize() throws Throwable {
-	super.finalize();
-	rs = null;
-    }
+	public SQLException getException() {
+		return exception;
+	}
+
+	public TableMetadata getResultMetadata() {
+		return resultMetadata;
+	}
+
+	private void next() {
+		if (rs != null) {
+			try {
+				hasNext = rs.next();
+			} catch (SQLException ex) {
+				exception = ex;
+				hasNext = false;
+			}
+		} else {
+			hasNext = false;
+		}
+	}
+
+	public boolean hasMoreElements() {
+		return hasNext;
+	}
+
+	public ArrayList<Object> nextElement() {
+		if (hasNext) {
+			ArrayList<Object> list = new ArrayList<Object>();
+			for (int i = 0; i < columnCount; i++) {
+				try {
+					list.add(rs.getObject(i + 1));
+				} catch (SQLException ex) {
+					list.add(null);
+				}
+			}
+			next();
+			return list;
+		}
+		return null;
+	}
+
+	@Override
+	protected void finalize() throws Throwable {
+		super.finalize();
+		rs = null;
+	}
 }
